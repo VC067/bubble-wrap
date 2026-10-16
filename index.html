@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#d8613d">
+  <title>Bubble Wrap — one more pop</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --red: #d8613d;
+      --sheet: #ec9686;
+      --cream: #fff4eb;
+      --dark: #772d23;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; width: 100%; min-height: 100%; }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow: hidden;
+      background: radial-gradient(ellipse 85% 78% at 50% 38%, #e7734c 0%, #d8613d 75%, #cc5637 100%);
+      color: var(--cream);
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    button { font: inherit; }
+
+    .app {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      height: 100vh;
+      height: 100dvh;
+      min-height: 360px;
+      padding: max(10px, env(safe-area-inset-top)) max(15px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(15px, env(safe-area-inset-left));
+    }
+
+    .topbar, .bottombar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .topbar { min-height: 27px; align-items: flex-start; }
+
+    h1 {
+      margin: 0;
+      font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+      font-size: clamp(19px, 1.7vw, 27px);
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: .065em;
+      text-transform: uppercase;
+    }
+
+    .edition, .hint, .label, .sheet-no, .sound-button, .reset-button {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .edition { margin-top: 4px; opacity: .85; white-space: nowrap; }
+
+    .stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      min-height: 0;
+      padding: 7px 0 9px;
+    }
+
+    .sheet {
+      --tilt-x: 0deg;
+      --tilt-y: 0deg;
+      --shine-x: 50%;
+      --shine-y: 35%;
+      position: relative;
+      flex: none;
+      width: 500px;
+      height: 400px;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        linear-gradient(131deg, rgba(255, 231, 219, .24) 0%, transparent 43%),
+        linear-gradient(156deg, #ee9d8f 0%, #ec9181 48%, #e68978 100%);
+      border: 1px solid rgba(255, 199, 180, .25);
+      box-shadow:
+        0 3px 2px rgba(125, 43, 27, .12),
+        0 15px 34px rgba(117, 40, 27, .29),
+        0 36px 65px rgba(117, 40, 27, .13),
+        inset 1px 1px 0 rgba(255, 239, 223, .3),
+        inset -3px -4px 8px rgba(135, 39, 26, .06);
+      touch-action: none;
+      cursor: pointer;
+      transform: perspective(1500px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+      transition: transform 190ms cubic-bezier(.2, .7, .2, 1);
+      will-change: transform;
+    }
+
+    .sheet::before {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      content: '';
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 57% 65% at var(--shine-x) var(--shine-y), rgba(255, 246, 225, .13), transparent 76%),
+        linear-gradient(90deg, rgba(255, 244, 232, .14), transparent 4%, transparent 97%, rgba(115, 27, 19, .06));
+    }
+
+    canvas { display: block; width: 100%; height: 100%; outline: none; }
+    canvas:focus-visible { outline: 2px solid var(--cream); outline-offset: -5px; }
+
+    .complete {
+      position: absolute;
+      z-index: 3;
+      top: 50%;
+      left: 50%;
+      width: max-content;
+      max-width: calc(100% - 32px);
+      padding: 18px 23px;
+      transform: translate(-50%, -44%) scale(.96);
+      background: rgba(255, 237, 224, .94);
+      color: var(--dark);
+      text-align: center;
+      box-shadow: 0 11px 26px rgba(111, 39, 25, .23);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s ease, transform .25s ease;
+    }
+
+    .complete.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+    .complete:not(.visible) button { visibility: hidden; }
+    .complete strong { display: block; font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif; font-size: clamp(29px, 4vw, 49px); font-weight: 400; letter-spacing: .035em; text-transform: uppercase; }
+    .complete button { margin-top: 12px; padding: 9px 13px; border: 1px solid var(--dark); background: transparent; color: var(--dark); cursor: pointer; }
+    .complete button:hover { background: var(--dark); color: var(--cream); }
+
+    .bottombar { min-height: 31px; align-items: flex-end; }
+    .status { display: flex; align-items: baseline; gap: 12px; white-space: nowrap; }
+    .count { font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif; font-size: clamp(22px, 2.3vw, 32px); line-height: 1; letter-spacing: .035em; font-variant-numeric: tabular-nums; }
+    .label { opacity: .8; }
+    .hint { opacity: .65; align-self: center; text-align: center; }
+    .controls { display: flex; align-items: center; gap: 17px; }
+    .sound-button, .reset-button { border: 0; padding: 6px 0; background: transparent; color: var(--cream); cursor: pointer; white-space: nowrap; }
+    .sound-button { opacity: .75; }
+    .sound-button:hover, .reset-button:hover { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
+    button:focus-visible { outline: 2px solid var(--cream); outline-offset: 4px; }
+    .complete button:focus-visible { outline-color: var(--dark); }
+
+    @media (max-width: 700px) {
+      .app { padding-left: 10px; padding-right: 10px; }
+      .topbar { min-height: 32px; }
+      h1 { font-size: 23px; }
+      .edition { font-size: 9px; }
+      .stage { padding: 8px 0 10px; }
+      .hint { display: none; }
+      .bottombar { align-items: center; }
+      .status { gap: 7px; }
+      .count { font-size: 25px; }
+      .label { font-size: 9px; }
+      .controls { gap: 12px; }
+      .sound-button, .reset-button { font-size: 9px; }
+    }
+
+    @media (max-width: 365px) {
+      .label { display: none; }
+      .edition { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .complete { transition: none; }
+      .sheet { transition: none; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1>Bubble Wrap</h1>
+      <span class="edition" id="sheetNo">SHEET NO. 001</span>
+    </header>
+
+    <div class="stage" id="stage">
+      <div class="sheet" id="sheet">
+        <canvas id="wrap" tabindex="0" role="button" aria-label="Bubble wrap. Drag or click to pop bubbles. Use arrow keys to choose a bubble, then press Space or Enter to pop it."></canvas>
+        <div class="complete" id="complete" aria-live="polite" aria-hidden="true">
+          <strong>All popped.</strong>
+          <button type="button" id="again">New sheet ↗</button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="bottombar">
+      <div class="status" aria-live="polite" aria-atomic="true"><span class="count" id="count">000 / 176</span><span class="label">popped</span></div>
+      <span class="hint">CLICK, DRAG, REPEAT.</span>
+      <div class="controls">
+        <button class="sound-button" type="button" id="sound" aria-label="Mute sound" aria-pressed="false">SOUND ON</button>
+        <button class="reset-button" type="button" id="reset">NEW SHEET ↗</button>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const canvas = document.getElementById('wrap');
+      const ctx = canvas.getContext('2d', { alpha: true });
+      const sheet = document.getElementById('sheet');
+      const stage = document.getElementById('stage');
+      const countEl = document.getElementById('count');
+      const sheetNoEl = document.getElementById('sheetNo');
+      const completeEl = document.getElementById('complete');
+      const soundButton = document.getElementById('sound');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+      let cols = 16, rows = 11, bubbles = [], particles = [];
+      let pitch = 40, stepX = 40, stepY = 35, width = 0, height = 0;
+      let popped = 0, sheetNumber = 1, hovered = -1, selected = 0;
+      let dragging = false, lastPointer = null, keyboardFocus = false;
+      let audio = null, noise = null, master = null, muted = false, lastFrame = 0, completionTimer = null;
+      let lightX = 0, lightY = 0, targetLightX = 0, targetLightY = 0;
+      const sprites = { inflated: [], flat: [], gloss: [], flatGloss: [], flatRidges: [] };
+      const colors = ['#fff1a8', '#fff8dc', '#ffbdcc', '#ffc149', '#7ee2dd', '#b2a8ff', '#ff718d'];
+      const random = (min, max) => min + Math.random() * (max - min);
+      const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+      function sprite(painter) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 192;
+        const g = c.getContext('2d');
+        g.scale(1.92, 1.92);
+        painter(g);
+        return c;
+      }
+
+      function creasePaths(variant) {
+        const main = new Path2D();
+        const fine = new Path2D();
+        switch (variant % 4) {
+          case 0: // Layered waves folded across each other.
+            main.moveTo(17, 37); main.bezierCurveTo(29, 25, 36, 48, 46, 43);
+            main.bezierCurveTo(57, 37, 65, 30, 81, 38);
+            main.moveTo(22, 64); main.bezierCurveTo(35, 54, 43, 68, 53, 57);
+            main.bezierCurveTo(63, 48, 70, 63, 79, 53);
+            fine.moveTo(33, 18); fine.bezierCurveTo(41, 30, 36, 34, 45, 43);
+            fine.moveTo(66, 77); fine.bezierCurveTo(58, 68, 64, 62, 56, 57);
+            break;
+          case 1: // Tall, pinched creases running down a sunken pocket.
+            main.moveTo(34, 18); main.bezierCurveTo(27, 32, 49, 37, 40, 50);
+            main.bezierCurveTo(33, 62, 47, 68, 38, 81);
+            main.moveTo(55, 17); main.bezierCurveTo(69, 31, 49, 39, 61, 51);
+            main.bezierCurveTo(70, 64, 55, 70, 67, 79);
+            fine.moveTo(18, 51); fine.bezierCurveTo(31, 48, 34, 54, 41, 50);
+            fine.moveTo(61, 51); fine.bezierCurveTo(69, 47, 72, 52, 82, 49);
+            break;
+          case 2: // A branching V where the plastic has buckled inward.
+            main.moveTo(17, 25); main.bezierCurveTo(26, 33, 35, 30, 49, 51);
+            main.bezierCurveTo(61, 34, 70, 32, 82, 25);
+            main.moveTo(21, 69); main.bezierCurveTo(31, 60, 42, 65, 49, 51);
+            main.bezierCurveTo(57, 64, 69, 58, 79, 68);
+            fine.moveTo(48, 51); fine.bezierCurveTo(42, 60, 47, 67, 51, 78);
+            fine.moveTo(28, 35); fine.bezierCurveTo(26, 42, 34, 46, 41, 48);
+            break;
+          default: // Twisted criss-cross folds with a split at the center.
+            main.moveTo(19, 31); main.bezierCurveTo(33, 25, 35, 48, 49, 44);
+            main.bezierCurveTo(66, 39, 66, 22, 81, 28);
+            main.moveTo(19, 63); main.bezierCurveTo(32, 65, 39, 49, 49, 48);
+            main.bezierCurveTo(62, 51, 66, 70, 80, 64);
+            fine.moveTo(49, 19); fine.bezierCurveTo(43, 30, 55, 36, 49, 46);
+            fine.moveTo(48, 49); fine.bezierCurveTo(43, 61, 53, 69, 49, 80);
+        }
+        return { main, fine };
+      }
+
+      function makeSprites() {
+        const tones = [
+          ['#f58356', '#d85b38', '#be472f'],
+          ['#ef7650', '#cd5133', '#ac3b29'],
+          ['#f48255', '#da603d', '#b7462e'],
+          ['#ed7049', '#c14a30', '#9f3527'],
+          ['#f78b5b', '#db633e', '#ba462d'],
+          ['#f07a50', '#d05536', '#a93b29'],
+          ['#f48457', '#d35a38', '#b1422d'],
+          ['#ee7850', '#c94f32', '#a43a29']
+        ];
+        for (let v = 0; v < tones.length; v++) {
+          const folds = creasePaths(v);
+          sprites.inflated.push(sprite(g => {
+            const [light, mid, dark] = tones[v];
+            const shift = (v % 4 - 1.5) * 1.15;
+            // The shadow is a contact shadow on the film, not a floating button shadow.
+            let grad = g.createRadialGradient(54, 56, 25, 53, 55, 49);
+            grad.addColorStop(0, 'rgba(115, 38, 25, .22)');
+            grad.addColorStop(.8, 'rgba(115, 38, 25, .15)');
+            grad.addColorStop(1, 'rgba(115, 38, 25, 0)');
+            g.fillStyle = grad;
+            g.beginPath(); g.arc(52, 54, 48, 0, Math.PI * 2); g.fill();
+
+            g.beginPath(); g.arc(50, 50, 43, 0, Math.PI * 2);
+            grad = g.createRadialGradient(38 + shift, 30, 4, 57, 62, 55);
+            grad.addColorStop(0, light);
+            grad.addColorStop(.42, mid);
+            grad.addColorStop(.76, mid);
+            grad.addColorStop(.94, dark);
+            grad.addColorStop(1, '#8d3327');
+            g.fillStyle = grad; g.fill();
+
+            // Transmitted light through the dome, with a darker band at the seal.
+            grad = g.createLinearGradient(17, 13, 83, 85);
+            grad.addColorStop(0, 'rgba(255, 181, 132, .17)');
+            grad.addColorStop(.36, 'rgba(255, 147, 96, .08)');
+            grad.addColorStop(.75, 'rgba(109, 34, 25, .04)');
+            grad.addColorStop(1, 'rgba(93, 32, 25, .19)');
+            g.fillStyle = grad; g.fill();
+            g.strokeStyle = 'rgba(120, 46, 33, .53)'; g.lineWidth = 1.15; g.stroke();
+
+            // The glassy rim has separate bright and dark reflected edges.
+            g.beginPath(); g.arc(50, 50, 41.2, 3.14, 5.91);
+            g.strokeStyle = 'rgba(255, 190, 147, .7)'; g.lineWidth = 1.5; g.stroke();
+            g.beginPath(); g.arc(50, 50, 39.3, 5.68, 7.68);
+            g.strokeStyle = 'rgba(114, 37, 28, .28)'; g.lineWidth = 1.8; g.stroke();
+            g.beginPath(); g.arc(50, 50, 40, .28, 1.65);
+            g.strokeStyle = 'rgba(255, 177, 138, .31)'; g.lineWidth = 1.3; g.stroke();
+
+            // The little curved slivers are what make it read as taut clear film.
+            g.beginPath(); g.arc(50, 50, 42.5, 3.59, 4.73);
+            g.strokeStyle = 'rgba(255, 240, 208, .88)'; g.lineWidth = 1.65; g.stroke();
+            g.beginPath(); g.arc(50, 50, 37.8, 5.25, 5.84);
+            g.strokeStyle = 'rgba(255, 232, 202, .53)'; g.lineWidth = 1.1; g.stroke();
+          }));
+
+          // Kept separate from the body so the softbox reflection can travel as the sheet tilts.
+          sprites.gloss.push(sprite(g => {
+            const shift = (v % 4 - 1.5) * 1.15;
+            g.beginPath(); g.arc(50, 50, 41.5, 0, Math.PI * 2); g.clip();
+            g.translate(shift, 0); g.rotate((v % 3 - 1) * .035);
+            let grad = g.createRadialGradient(42, 34, 2, 43, 34, 28);
+            grad.addColorStop(0, 'rgba(255, 246, 226, .47)');
+            grad.addColorStop(.5, 'rgba(255, 218, 185, .15)');
+            grad.addColorStop(1, 'rgba(255, 218, 185, 0)');
+            g.fillStyle = grad; g.beginPath(); g.arc(43, 34, 28, 0, Math.PI * 2); g.fill();
+            g.shadowColor = 'rgba(255, 255, 239, .55)'; g.shadowBlur = 4;
+            g.fillStyle = '#fffefa';
+            g.beginPath();
+            g.moveTo(37, 30); g.quadraticCurveTo(44, 27, 55, 28);
+            g.quadraticCurveTo(59, 29, 58, 33); g.lineTo(56, 42);
+            g.quadraticCurveTo(55, 46, 51, 46); g.lineTo(41, 45);
+            g.quadraticCurveTo(37, 45, 36, 41); g.closePath(); g.fill();
+            g.shadowBlur = 0;
+            g.beginPath(); g.ellipse(25, 39, 2.4, 6.2, .38, 0, Math.PI * 2); g.fill();
+            g.beginPath(); g.ellipse(55, 17, 3.4, 1.3, -.12, 0, Math.PI * 2); g.fill();
+          }));
+
+          sprites.flat.push(sprite(g => {
+            const tilt = (v * 23 - 31) * Math.PI / 180;
+            g.save(); g.translate(50, 50); g.rotate(tilt); g.translate(-50, -50);
+            let grad = g.createRadialGradient(48, 47, 7, 50, 50, 43);
+            grad.addColorStop(0, 'rgba(181, 74, 55, .23)');
+            grad.addColorStop(.62, 'rgba(207, 94, 71, .17)');
+            grad.addColorStop(.84, 'rgba(255, 217, 195, .36)');
+            grad.addColorStop(1, 'rgba(162, 67, 52, .13)');
+            g.beginPath();
+            for (let i = 0; i <= 48; i++) {
+              const a = i / 48 * Math.PI * 2;
+              const r = 39.6 + Math.sin(a * 5 + v) * 1.4 + Math.cos(a * 8 - v) * 1;
+              const x = 50 + Math.cos(a) * r, y = 50 + Math.sin(a) * r;
+              i ? g.lineTo(x, y) : g.moveTo(x, y);
+            }
+            g.closePath(); g.fillStyle = grad; g.fill();
+            g.strokeStyle = 'rgba(255, 240, 222, .55)'; g.lineWidth = 1.6;
+            g.shadowColor = 'rgba(255, 255, 244, .35)'; g.shadowBlur = 3; g.stroke();
+            g.shadowBlur = 0;
+            g.beginPath(); g.ellipse(49, 50, 30, 27, -.15, 0, Math.PI * 2);
+            g.fillStyle = 'rgba(150, 56, 43, .16)'; g.fill();
+
+            // Fixed grooves give the membrane depth; highlights stay registered
+            // to these folds instead of sliding over them as a second set of lines.
+            g.lineCap = 'round'; g.lineJoin = 'round';
+            g.strokeStyle = 'rgba(113, 49, 39, .27)'; g.lineWidth = 3.2;
+            g.stroke(folds.main);
+            g.strokeStyle = 'rgba(113, 49, 39, .16)'; g.lineWidth = 1.6;
+            g.stroke(folds.fine);
+            g.beginPath(); g.arc(50, 50, 38, 3.35, 5.5);
+            g.strokeStyle = 'rgba(255, 232, 213, .26)'; g.lineWidth = 1.7; g.stroke();
+            g.restore();
+          }));
+
+          sprites.flatGloss.push(sprite(g => {
+            g.beginPath(); g.arc(50, 50, 39, 0, Math.PI * 2); g.clip();
+
+            // A travelling patch of light refracts through the collapsed membrane.
+            let grad = g.createRadialGradient(39, 32, 2, 44, 41, 32);
+            grad.addColorStop(0, 'rgba(255, 255, 245, .48)');
+            grad.addColorStop(.48, 'rgba(255, 242, 220, .14)');
+            grad.addColorStop(1, 'rgba(255, 242, 220, 0)');
+            g.fillStyle = grad; g.beginPath(); g.arc(44, 41, 32, 0, Math.PI * 2); g.fill();
+            grad = g.createRadialGradient(67, 68, 0, 63, 63, 29);
+            grad.addColorStop(0, 'rgba(117, 42, 34, .17)');
+            grad.addColorStop(1, 'rgba(117, 42, 34, 0)');
+            g.fillStyle = grad; g.beginPath(); g.arc(63, 63, 29, 0, Math.PI * 2); g.fill();
+          }));
+
+          sprites.flatRidges.push(sprite(g => {
+            const tilt = (v * 23 - 31) * Math.PI / 180;
+            g.beginPath(); g.arc(50, 50, 39, 0, Math.PI * 2); g.clip();
+            g.save(); g.translate(50, 50); g.rotate(tilt); g.translate(-50, -50);
+            g.lineCap = 'round'; g.lineJoin = 'round';
+            g.strokeStyle = 'rgba(255, 255, 248, .86)'; g.lineWidth = 2.7;
+            g.shadowColor = 'rgba(255, 255, 243, .73)'; g.shadowBlur = 4;
+            g.stroke(folds.main);
+            g.lineWidth = 1.7; g.stroke(folds.fine);
+            g.restore();
+          }));
+        }
+      }
+
+      function updateCount() {
+        countEl.textContent = String(popped).padStart(3, '0') + ' / ' + String(bubbles.length).padStart(3, '0');
+      }
+
+      function reset(newNumber = true) {
+        clearTimeout(completionTimer);
+        if (newNumber) sheetNumber++;
+        sheetNoEl.textContent = 'SHEET NO. ' + String(sheetNumber).padStart(3, '0');
+        completeEl.classList.remove('visible');
+        completeEl.setAttribute('aria-hidden', 'true');
+        bubbles = [];
+        particles = [];
+        popped = 0;
+        selected = 0;
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            bubbles.push({
+              row, col, x: 0, y: 0, popped: false, at: 0, joltAt: 0,
+              variant: Math.floor(Math.random() * sprites.inflated.length),
+              size: random(.975, 1.018),
+              phase: random(0, Math.PI * 2),
+              special: false
+            });
+          }
+        }
+        // Exactly one in ten pockets has a surprise inside, scattered across the sheet.
+        const indices = bubbles.map((_, i) => i);
+        for (let i = 0; i < Math.round(bubbles.length * .10); i++) {
+          const j = i + Math.floor(Math.random() * (indices.length - i));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+          bubbles[indices[i]].special = true;
+        }
+        placeBubbles();
+        updateCount();
+      }
+
+      function placeBubbles() {
+        bubbles.forEach(b => {
+          b.x = pitch * .68 + (b.col + (b.row % 2 ? .48 : 0)) * stepX;
+          b.y = pitch * .68 + b.row * stepY;
+        });
+      }
+
+      function resize() {
+        const mobile = window.innerWidth < 700;
+        const nextCols = mobile ? 9 : 16;
+        const nextRows = mobile ? 16 : 11;
+        const changed = cols !== nextCols || rows !== nextRows;
+        cols = nextCols; rows = nextRows;
+        const box = stage.getBoundingClientRect();
+        // Bubbles are slightly closer vertically, as on a real staggered sheet.
+        pitch = Math.max(12, Math.min((box.width - 2) / ((cols - 1 + .48) * 1.06 + 1.36), (box.height - 2) / ((rows - 1) * .88 + 1.36), mobile ? 52 : 86));
+        stepX = pitch * 1.06;
+        stepY = pitch * .88;
+        width = pitch * ((cols - 1 + .48) * 1.06 + 1.36);
+        height = pitch * ((rows - 1) * .88 + 1.36);
+        sheet.style.width = width + 'px';
+        sheet.style.height = height + 'px';
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
+        if (changed && bubbles.length) reset();
+        else placeBubbles();
+      }
+
+      function audioReady() {
+        if (muted) return false;
+        try {
+          if (!audio) {
+            audio = new (window.AudioContext || window.webkitAudioContext)();
+            const length = Math.floor(audio.sampleRate * .16);
+            noise = audio.createBuffer(1, length, audio.sampleRate);
+            const data = noise.getChannelData(0);
+            for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+            // Fast swipes can produce many pops at once; keep the mix punchy without clipping.
+            const limiter = audio.createDynamicsCompressor();
+            limiter.threshold.value = -18;
+            limiter.knee.value = 8;
+            limiter.ratio.value = 7;
+            limiter.attack.value = .002;
+            limiter.release.value = .09;
+            master = audio.createGain();
+            master.gain.value = .8;
+            master.connect(limiter).connect(audio.destination);
+          }
+          if (audio.state === 'suspended') audio.resume();
+          return true;
+        } catch (_) { return false; }
+      }
+
+      function playPop() {
+        if (!audioReady()) return;
+        const t = audio.currentTime;
+        const variation = random(.83, 1.19);
+        // A brittle snap, a tiny puff of escaping air, and the low tap of the film.
+        const crackle = audio.createBufferSource();
+        crackle.buffer = noise;
+        crackle.playbackRate.value = variation;
+        const filter = audio.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = random(1300, 2150);
+        filter.Q.value = .65;
+        const snap = audio.createGain();
+        snap.gain.setValueAtTime(.0001, t);
+        snap.gain.linearRampToValueAtTime(random(.4, .53), t + .002);
+        snap.gain.exponentialRampToValueAtTime(.0001, t + .037);
+        crackle.connect(filter).connect(snap).connect(master);
+        crackle.start(t); crackle.stop(t + .045);
+
+        const air = audio.createBufferSource();
+        air.buffer = noise;
+        air.playbackRate.value = variation * .75;
+        const lowpass = audio.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.value = 680 * variation;
+        const puff = audio.createGain();
+        puff.gain.setValueAtTime(.0001, t);
+        puff.gain.linearRampToValueAtTime(.17, t + .004);
+        puff.gain.exponentialRampToValueAtTime(.0001, t + .09);
+        air.connect(lowpass).connect(puff).connect(master);
+        air.start(t); air.stop(t + .095);
+
+        const thud = audio.createOscillator();
+        const body = audio.createGain();
+        thud.type = 'triangle';
+        thud.frequency.setValueAtTime(170 * variation, t);
+        thud.frequency.exponentialRampToValueAtTime(76 * variation, t + .065);
+        body.gain.setValueAtTime(.0001, t);
+        body.gain.linearRampToValueAtTime(.16, t + .003);
+        body.gain.exponentialRampToValueAtTime(.0001, t + .08);
+        thud.connect(body).connect(master);
+        thud.start(t); thud.stop(t + .085);
+      }
+
+      function burst(b) {
+        if (reducedMotion.matches) return;
+        for (let i = 0; i < 17; i++) {
+          const angle = (i / 17) * Math.PI * 2 + random(-.25, .25);
+          const speed = random(1.3, 4) * pitch / 40;
+          particles.push({
+            x: b.x, y: b.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1.1,
+            size: random(2, 4.4) * pitch / 40, color: colors[Math.floor(Math.random() * colors.length)],
+            life: random(36, 62), maxLife: 62, spin: random(-.2, .2), rotation: random(0, 6.28), square: Math.random() > .35
+          });
+        }
+      }
+
+      function pop(index) {
+        const b = bubbles[index];
+        if (!b || b.popped) return;
+        b.popped = true;
+        b.at = performance.now();
+        if (!reducedMotion.matches) {
+          for (let row = Math.max(0, b.row - 1); row <= Math.min(rows - 1, b.row + 1); row++) {
+            for (let col = Math.max(0, b.col - 1); col <= Math.min(cols - 1, b.col + 1); col++) {
+              const neighbor = bubbles[row * cols + col];
+              if (!neighbor.popped) neighbor.joltAt = b.at;
+            }
+          }
+        }
+        popped++;
+        updateCount();
+        playPop();
+        if (b.special) burst(b);
+        if (popped === bubbles.length) {
+          completionTimer = setTimeout(() => {
+            completeEl.classList.add('visible');
+            completeEl.setAttribute('aria-hidden', 'false');
+          }, reducedMotion.matches ? 0 : 550);
+        }
+      }
+
+      function nearest(x, y) {
+        const row = Math.round((y - pitch * .68) / stepY);
+        if (row < 0 || row >= rows) return -1;
+        const col = Math.round((x - pitch * .68) / stepX - (row % 2 ? .48 : 0));
+        if (col < 0 || col >= cols) return -1;
+        const index = row * cols + col;
+        const b = bubbles[index];
+        return Math.hypot(b.x - x, b.y - y) <= pitch * .57 ? index : -1;
+      }
+
+      function position(event) {
+        // Undo the sheet's 3D projection before hit-testing. A bounding rectangle alone
+        // drifts away from the bubbles at the corners once the sheet is tilted.
+        const rect = sheet.getBoundingClientRect();
+        const matrix = new DOMMatrix(getComputedStyle(sheet).transform);
+        const halfW = width / 2, halfH = height / 2;
+        let minX = Infinity, minY = Infinity;
+        for (const x of [-halfW, halfW]) {
+          for (const y of [-halfH, halfH]) {
+            const corner = matrix.transformPoint(new DOMPoint(x, y, 0, 1));
+            minX = Math.min(minX, corner.x / corner.w);
+            minY = Math.min(minY, corner.y / corner.w);
+          }
+        }
+        const sx = event.clientX - rect.left + minX;
+        const sy = event.clientY - rect.top + minY;
+        const a = matrix.m11 - sx * matrix.m14;
+        const b = matrix.m21 - sx * matrix.m24;
+        const c = matrix.m12 - sy * matrix.m14;
+        const d = matrix.m22 - sy * matrix.m24;
+        const e = sx * matrix.m44 - matrix.m41;
+        const f = sy * matrix.m44 - matrix.m42;
+        const determinant = a * d - b * c;
+        if (Math.abs(determinant) < 1e-8) return { x: -1, y: -1 };
+        const localX = (e * d - b * f) / determinant + halfW;
+        const localY = (a * f - e * c) / determinant + halfH;
+        const insetX = (width - canvas.clientWidth) / 2;
+        const insetY = (height - canvas.clientHeight) / 2;
+        return {
+          x: (localX - insetX) * width / canvas.clientWidth,
+          y: (localY - insetY) * height / canvas.clientHeight
+        };
+      }
+
+      function aimLight(point, pointerType) {
+        if (reducedMotion.matches || pointerType === 'touch') return;
+        const nx = clamp((point.x / width - .5) * 2, -1, 1);
+        const ny = clamp((point.y / height - .5) * 2, -1, 1);
+        targetLightX = nx;
+        targetLightY = ny;
+        sheet.style.setProperty('--tilt-x', (ny * 3).toFixed(2) + 'deg');
+        sheet.style.setProperty('--tilt-y', (-nx * 3.8).toFixed(2) + 'deg');
+        sheet.style.setProperty('--shine-x', (50 + nx * 24).toFixed(1) + '%');
+        sheet.style.setProperty('--shine-y', (35 + ny * 25).toFixed(1) + '%');
+      }
+
+      function settleLight() {
+        targetLightX = targetLightY = 0;
+        sheet.style.setProperty('--tilt-x', '0deg');
+        sheet.style.setProperty('--tilt-y', '0deg');
+        sheet.style.setProperty('--shine-x', '50%');
+        sheet.style.setProperty('--shine-y', '35%');
+      }
+
+      function trace(from, to) {
+        const distance = Math.hypot(to.x - from.x, to.y - from.y);
+        const steps = Math.max(1, Math.ceil(distance / (pitch * .25)));
+        for (let i = 0; i <= steps; i++) {
+          const index = nearest(from.x + (to.x - from.x) * i / steps, from.y + (to.y - from.y) * i / steps);
+          if (index !== -1) pop(index);
+        }
+      }
+
+      canvas.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        event.preventDefault();
+        canvas.setPointerCapture(event.pointerId);
+        dragging = true;
+        keyboardFocus = false;
+        lastPointer = position(event);
+        trace(lastPointer, lastPointer);
+        aimLight(lastPointer, event.pointerType);
+      });
+      canvas.addEventListener('pointermove', event => {
+        const point = position(event);
+        if (dragging) { trace(lastPointer, point); lastPointer = point; }
+        else hovered = event.pointerType === 'mouse' ? nearest(point.x, point.y) : -1;
+        aimLight(point, event.pointerType);
+      });
+      function endDrag() {
+        dragging = false;
+        lastPointer = null;
+        if (!sheet.matches(':hover')) settleLight();
+      }
+      canvas.addEventListener('pointerup', endDrag);
+      canvas.addEventListener('pointercancel', endDrag);
+      canvas.addEventListener('lostpointercapture', endDrag);
+      sheet.addEventListener('pointerleave', () => {
+        hovered = -1;
+        if (!dragging) settleLight();
+      });
+      window.addEventListener('blur', settleLight);
+      canvas.addEventListener('focus', () => { keyboardFocus = true; });
+      canvas.addEventListener('blur', () => { keyboardFocus = false; });
+      canvas.addEventListener('keydown', event => {
+        const directions = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols };
+        if (event.key in directions) {
+          event.preventDefault();
+          const next = selected + directions[event.key];
+          if (next >= 0 && next < bubbles.length && (Math.abs(directions[event.key]) > 1 || Math.floor(next / cols) === Math.floor(selected / cols))) selected = next;
+        } else if (event.key === ' ' || event.key === 'Enter') {
+          event.preventDefault(); pop(selected);
+        }
+      });
+
+      soundButton.addEventListener('click', () => {
+        muted = !muted;
+        soundButton.textContent = muted ? 'SOUND OFF' : 'SOUND ON';
+        soundButton.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound');
+        soundButton.setAttribute('aria-pressed', String(muted));
+        if (!muted) audioReady();
+      });
+      document.getElementById('reset').addEventListener('click', () => reset());
+      document.getElementById('again').addEventListener('click', () => reset());
+
+      function draw(now) {
+        const dt = lastFrame ? Math.min((now - lastFrame) / 16.67, 3) : 1;
+        lastFrame = now;
+        const follow = 1 - Math.pow(.82, dt);
+        lightX += (targetLightX - lightX) * follow;
+        lightY += (targetLightY - lightY) * follow;
+        const reflectionX = lightX * pitch * .095;
+        const reflectionY = lightY * pitch * .085;
+        const rimAngle = Math.atan2(lightY - .55, lightX - .55);
+        ctx.clearRect(0, 0, width, height);
+        const diameter = pitch * 1.08;
+
+        for (let i = 0; i < bubbles.length; i++) {
+          const b = bubbles[i];
+          if (!b.popped) {
+            let scale = b.size;
+            if (i === hovered && !dragging) scale *= 1.045;
+            if (!reducedMotion.matches) scale *= 1 + Math.sin(now * .0011 + b.phase) * .003;
+            if (b.joltAt && now - b.joltAt < 280) {
+              const age = now - b.joltAt;
+              scale *= 1 + Math.sin(age * .052) * .027 * Math.exp(-age / 105);
+            }
+            const size = diameter * scale;
+            ctx.drawImage(sprites.inflated[b.variant], b.x - size / 2, b.y - size / 2, size, size);
+            ctx.drawImage(sprites.gloss[b.variant], b.x - size / 2 + reflectionX, b.y - size / 2 + reflectionY, size, size);
+
+            // Just a handful of bubbles catch a slowly passing, almost imperceptible glint.
+            if (!reducedMotion.matches && i % 23 === 7) {
+              const shine = Math.max(0, Math.sin(now * .0012 - i * .8));
+              if (shine > .7) {
+                ctx.globalAlpha = (shine - .7) * .22;
+                ctx.fillStyle = '#fff9ee';
+                ctx.beginPath(); ctx.ellipse(b.x + pitch * .18 + reflectionX, b.y - pitch * .26 + reflectionY, pitch * .055, pitch * .022, -.55, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1;
+              }
+            }
+          } else {
+            const elapsed = reducedMotion.matches ? 300 : now - b.at;
+            const t = clamp(elapsed / 165, 0, 1);
+            const ease = 1 - Math.pow(1 - t, 3);
+            const flatSize = diameter * b.size;
+            const appear = Math.min(1, t * 2.8);
+            ctx.globalAlpha = appear;
+            ctx.drawImage(sprites.flat[b.variant], b.x - flatSize / 2, b.y - flatSize / 2, flatSize, flatSize);
+            ctx.drawImage(sprites.flatGloss[b.variant], b.x - flatSize / 2 + reflectionX, b.y - flatSize / 2 + reflectionY, flatSize, flatSize);
+            const foldAngle = (b.variant * 23 - 31) * Math.PI / 180;
+            const facing = lightX * Math.cos(foldAngle) + lightY * Math.sin(foldAngle);
+            ctx.globalAlpha = appear * clamp(.92 + facing * .15, .72, 1);
+            ctx.drawImage(sprites.flatRidges[b.variant], b.x - flatSize / 2, b.y - flatSize / 2, flatSize, flatSize);
+            ctx.globalAlpha = appear;
+            ctx.beginPath();
+            ctx.arc(b.x, b.y, flatSize * .412, rimAngle - .42, rimAngle + .38);
+            ctx.strokeStyle = 'rgba(255, 254, 242, .65)';
+            ctx.lineWidth = pitch * .022;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            if (t < 1) {
+              ctx.save(); ctx.translate(b.x, b.y);
+              ctx.scale(1 - ease * .29, 1 - ease * .42);
+              ctx.globalAlpha = 1 - ease;
+              ctx.drawImage(sprites.inflated[b.variant], -diameter * b.size / 2, -diameter * b.size / 2, diameter * b.size, diameter * b.size);
+              ctx.drawImage(sprites.gloss[b.variant], -diameter * b.size / 2 + reflectionX, -diameter * b.size / 2 + reflectionY, diameter * b.size, diameter * b.size);
+              ctx.restore();
+              if (t < .55) {
+                ctx.beginPath(); ctx.arc(b.x, b.y, pitch * (.29 + t * .52), 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 246, 224, ' + (.65 * (1 - t / .55)) + ')';
+                ctx.lineWidth = 1.8; ctx.stroke();
+              }
+            }
+          }
+        }
+
+        if (keyboardFocus && bubbles[selected]) {
+          const b = bubbles[selected];
+          ctx.beginPath(); ctx.arc(b.x, b.y, pitch * .49, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255, 250, 231, .96)';
+          ctx.lineWidth = 2; ctx.stroke();
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          p.vy += .11 * dt; p.vx *= Math.pow(.986, dt);
+          p.rotation += p.spin * dt; p.life -= dt;
+          if (p.life <= 0) { particles.splice(i, 1); continue; }
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation);
+          ctx.globalAlpha = Math.min(1, p.life / 17);
+          ctx.fillStyle = p.color;
+          if (p.square) ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * .74);
+          else { ctx.beginPath(); ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2); ctx.fill(); }
+          ctx.restore();
+        }
+        requestAnimationFrame(draw);
+      }
+
+      makeSprites();
+      resize();
+      reset(false);
+      window.addEventListener('resize', resize);
+      requestAnimationFrame(draw);
+    })();
+  </script>
+</body>
+</html>
